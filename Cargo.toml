@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["crates/ior-core", "crates/ior-backend-posix", "crates/ior-bench"]
+members = ["crates/ior-core", "crates/ior-backend-posix", "crates/ior-bench", "crates/mdtest-bench"]
 
 [workspace.package]
 version = "0.1.0"
