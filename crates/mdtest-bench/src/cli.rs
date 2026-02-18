@@ -131,6 +131,14 @@ pub struct CliArgs {
     /// Rename directories in directory test
     #[arg(long = "rename-dirs")]
     pub rename_dirs: bool,
+
+    /// Output results as JSON to stdout (suppresses text output)
+    #[arg(long = "json")]
+    pub json: bool,
+
+    /// Output results as JSON to file (text output still printed)
+    #[arg(long = "json-file")]
+    pub json_file: Option<String>,
 }
 
 impl CliArgs {

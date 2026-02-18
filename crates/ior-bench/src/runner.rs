@@ -11,6 +11,12 @@ use mpi::traits::*;
 
 use crate::report;
 
+/// Results from a complete benchmark run (all iterations).
+pub struct BenchmarkResults {
+    pub write_results: Vec<report::IterResult>,
+    pub read_results: Vec<report::IterResult>,
+}
+
 /// Run the full MPI-parallel benchmark loop.
 ///
 /// Reference: `ior.c:1197-1490` (TestIoSys)
@@ -18,14 +24,17 @@ pub fn run_benchmark(
     params: &IorParam,
     backend: &dyn Aiori,
     comm: &SimpleCommunicator,
-) -> Result<(), IorError> {
+    print_text: bool,
+) -> Result<BenchmarkResults, IorError> {
     let rank = comm.rank();
     let num_tasks = params.num_tasks;
 
     let mut write_results = Vec::new();
     let mut read_results = Vec::new();
 
-    report::print_header(comm);
+    if print_text {
+        report::print_header(comm);
+    }
 
     for rep in 0..params.repetitions {
         let mut rank_offset: i32 = 0;
@@ -74,7 +83,7 @@ pub fn run_benchmark(
             check_file_size(params, backend, data_moved, rank, rank_offset, comm);
 
             let result =
-                reduce_and_report("write", &timers, params, data_moved, comm, rep);
+                reduce_and_report("write", &timers, params, data_moved, comm, rep, print_text);
             if let Some(r) = result {
                 write_results.push(r);
             }
@@ -120,7 +129,7 @@ pub fn run_benchmark(
             timers.timers[5] = now();
 
             let result =
-                reduce_and_report("read", &timers, params, data_moved, comm, rep);
+                reduce_and_report("read", &timers, params, data_moved, comm, rep, print_text);
             if let Some(r) = result {
                 read_results.push(r);
             }
@@ -143,14 +152,16 @@ pub fn run_benchmark(
     }
 
     // Print summary (rank 0 only)
-    if !write_results.is_empty() {
-        report::print_summary("write", &write_results, params.block_size, params.transfer_size, comm);
-    }
-    if !read_results.is_empty() {
-        report::print_summary("read", &read_results, params.block_size, params.transfer_size, comm);
+    if print_text {
+        if !write_results.is_empty() {
+            report::print_summary("write", &write_results, params.block_size, params.transfer_size, comm);
+        }
+        if !read_results.is_empty() {
+            report::print_summary("read", &read_results, params.block_size, params.transfer_size, comm);
+        }
     }
 
-    Ok(())
+    Ok(BenchmarkResults { write_results, read_results })
 }
 
 /// Inner I/O loop: write or read data for all segments and offsets.
@@ -288,6 +299,7 @@ fn reduce_and_report(
     data_moved: i64,
     comm: &SimpleCommunicator,
     rep: i32,
+    print_text: bool,
 ) -> Option<report::IterResult> {
     // 1. Reduce timers across ranks
     let reduced = report::reduce_timers(timers, comm);
@@ -307,15 +319,11 @@ fn reduce_and_report(
     );
 
     // 4. Print result (rank 0 only)
-    report::print_result(access, &result, params.block_size, params.transfer_size, comm);
-
-    if comm.rank() == 0 {
-        Some(result)
-    } else {
-        // Non-root ranks still computed the result for local use but only rank 0
-        // gets meaningful reduced values
-        Some(result)
+    if print_text {
+        report::print_result(access, &result, params.block_size, params.transfer_size, comm);
     }
+
+    Some(result)
 }
 
 /// Check file size consistency across ranks.
@@ -392,14 +400,17 @@ pub fn run_benchmark_async(
     params: &IorParam,
     backend: &dyn Aiori,
     comm: &SimpleCommunicator,
-) -> Result<(), IorError> {
+    print_text: bool,
+) -> Result<BenchmarkResults, IorError> {
     let rank = comm.rank();
     let num_tasks = params.num_tasks;
 
     let mut write_results = Vec::new();
     let mut read_results = Vec::new();
 
-    report::print_header(comm);
+    if print_text {
+        report::print_header(comm);
+    }
 
     for rep in 0..params.repetitions {
         let mut rank_offset: i32 = 0;
@@ -454,7 +465,7 @@ pub fn run_benchmark_async(
             comm.barrier();
             check_file_size(params, backend, data_moved, rank, rank_offset, comm);
 
-            let result = reduce_and_report("write", &timers, params, data_moved, comm, rep);
+            let result = reduce_and_report("write", &timers, params, data_moved, comm, rep, print_text);
             if let Some(r) = result {
                 write_results.push(r);
             }
@@ -505,7 +516,7 @@ pub fn run_benchmark_async(
             backend.close(handle)?;
             timers.timers[5] = now();
 
-            let result = reduce_and_report("read", &timers, params, data_moved, comm, rep);
+            let result = reduce_and_report("read", &timers, params, data_moved, comm, rep, print_text);
             if let Some(r) = result {
                 read_results.push(r);
             }
@@ -525,26 +536,28 @@ pub fn run_benchmark_async(
         }
     }
 
-    if !write_results.is_empty() {
-        report::print_summary(
-            "write",
-            &write_results,
-            params.block_size,
-            params.transfer_size,
-            comm,
-        );
-    }
-    if !read_results.is_empty() {
-        report::print_summary(
-            "read",
-            &read_results,
-            params.block_size,
-            params.transfer_size,
-            comm,
-        );
+    if print_text {
+        if !write_results.is_empty() {
+            report::print_summary(
+                "write",
+                &write_results,
+                params.block_size,
+                params.transfer_size,
+                comm,
+            );
+        }
+        if !read_results.is_empty() {
+            report::print_summary(
+                "read",
+                &read_results,
+                params.block_size,
+                params.transfer_size,
+                comm,
+            );
+        }
     }
 
-    Ok(())
+    Ok(BenchmarkResults { write_results, read_results })
 }
 
 /// Completion state for async I/O tracking.

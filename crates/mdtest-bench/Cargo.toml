@@ -8,3 +8,6 @@ ior-core.workspace = true
 ior-backend-posix.workspace = true
 clap.workspace = true
 mpi.workspace = true
+libc.workspace = true
+serde.workspace = true
+serde_json.workspace = true

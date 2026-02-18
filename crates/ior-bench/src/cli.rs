@@ -114,6 +114,14 @@ pub struct CliArgs {
     /// Async queue depth (1 = synchronous)
     #[arg(short = 'q', long = "queue-depth", default_value_t = 1)]
     pub queue_depth: i32,
+
+    /// Output results as JSON to stdout (suppresses text output)
+    #[arg(long = "json")]
+    pub json: bool,
+
+    /// Output results as JSON to file (text output still printed)
+    #[arg(long = "json-file")]
+    pub json_file: Option<String>,
 }
 
 /// Parse a size string with optional k/m/g/t suffix (case-insensitive).

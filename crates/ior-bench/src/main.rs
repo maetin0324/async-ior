@@ -1,4 +1,5 @@
 mod cli;
+mod json_output;
 mod report;
 mod runner;
 
@@ -15,6 +16,16 @@ fn main() {
     let mpi_size = world.size();
 
     let args = CliArgs::parse();
+
+    // Extract JSON flags before consuming args
+    let json_stdout = args.json;
+    let json_file = args.json_file.clone();
+    let json_mode = json_stdout || json_file.is_some();
+    let print_text = !json_stdout;
+
+    // Save command line for JSON output
+    let command_line = std::env::args().collect::<Vec<_>>().join(" ");
+
     let mut params = args.into_ior_param();
 
     // Override num_tasks from MPI if not set (ref: ior.c:904-935)
@@ -31,7 +42,7 @@ fn main() {
     }
 
     // Print test configuration (rank 0 only)
-    if rank == 0 {
+    if rank == 0 && print_text {
         println!("IOR-bench (Rust async-ior)");
         println!(
             "  api            = {}",
@@ -72,13 +83,32 @@ fn main() {
 
     // Run the benchmark: async path for queue_depth > 1, sync path otherwise
     let result = if params.queue_depth > 1 {
-        runner::run_benchmark_async(&params, backend.as_ref(), &test_comm)
+        runner::run_benchmark_async(&params, backend.as_ref(), &test_comm, print_text)
     } else {
-        runner::run_benchmark(&params, backend.as_ref(), &test_comm)
+        runner::run_benchmark(&params, backend.as_ref(), &test_comm, print_text)
     };
 
-    if let Err(e) = result {
-        eprintln!("ERROR [rank {}]: {}", rank, e);
+    match result {
+        Ok(bench_results) => {
+            // JSON output (rank 0 only)
+            if rank == 0 && json_mode {
+                let doc = json_output::build_ior_json(&params, &bench_results, &command_line);
+                let json_str = serde_json::to_string_pretty(&doc)
+                    .expect("failed to serialize JSON");
+
+                if json_stdout {
+                    println!("{}", json_str);
+                }
+
+                if let Some(ref path) = json_file {
+                    std::fs::write(path, &json_str)
+                        .unwrap_or_else(|e| eprintln!("ERROR: failed to write JSON file: {}", e));
+                }
+            }
+        }
+        Err(e) => {
+            eprintln!("ERROR [rank {}]: {}", rank, e);
+        }
     }
 
     // Synchronize all ranks before exit
