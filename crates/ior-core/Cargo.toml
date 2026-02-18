@@ -1,0 +1,9 @@
+[package]
+name = "ior-core"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+thiserror = { workspace = true }
+bitflags = { workspace = true }
+mpi = { workspace = true }

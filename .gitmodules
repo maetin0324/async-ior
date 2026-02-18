@@ -1,0 +1,3 @@
+[submodule "external/ior"]
+	path = external/ior
+	url = https://github.com/maetin0324/ior.git

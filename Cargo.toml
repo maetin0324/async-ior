@@ -1,0 +1,16 @@
+[workspace]
+resolver = "3"
+members = ["crates/ior-core", "crates/ior-backend-posix", "crates/ior-bench"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+
+[workspace.dependencies]
+ior-core = { path = "crates/ior-core" }
+ior-backend-posix = { path = "crates/ior-backend-posix" }
+libc = "0.2"
+bitflags = "2"
+thiserror = "2"
+clap = { version = "4", features = ["derive"] }
+mpi = "0.8"

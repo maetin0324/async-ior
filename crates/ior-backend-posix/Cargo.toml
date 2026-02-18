@@ -1,0 +1,8 @@
+[package]
+name = "ior-backend-posix"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ior-core = { workspace = true }
+libc = { workspace = true }
