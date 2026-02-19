@@ -153,6 +153,8 @@ fn select_backend(params: &ior_core::IorParam) -> Box<dyn ior_core::Aiori> {
                 Box::new(ior_backend_posix::PosixBackend::new(direct_io))
             }
         }
+        "BENCHFS" => Box::new(ior_backend_benchfs::BenchfsBackend::new()),
+        "CHFS" => Box::new(ior_backend_chfs::ChfsBackend::new()),
         other => {
             eprintln!("Unknown API: {}, falling back to POSIX", other);
             Box::new(ior_backend_posix::PosixBackend::new(direct_io))

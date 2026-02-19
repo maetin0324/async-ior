@@ -166,6 +166,8 @@ fn main() {
 fn select_backend(params: &params::MdtestParam) -> Box<dyn ior_core::Aiori> {
     match params.api.as_str() {
         "POSIX" => Box::new(ior_backend_posix::PosixBackend::new(false)),
+        "BENCHFS" => Box::new(ior_backend_benchfs::BenchfsBackend::new()),
+        "CHFS" => Box::new(ior_backend_chfs::ChfsBackend::new()),
         other => {
             eprintln!("Unknown API: {}, falling back to POSIX", other);
             Box::new(ior_backend_posix::PosixBackend::new(false))

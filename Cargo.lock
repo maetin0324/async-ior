@@ -219,6 +219,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
 
 [[package]]
+name = "ior-backend-benchfs"
+version = "0.1.0"
+dependencies = [
+ "ior-core",
+ "libc",
+]
+
+[[package]]
+name = "ior-backend-chfs"
+version = "0.1.0"
+dependencies = [
+ "ior-core",
+ "libc",
+]
+
+[[package]]
 name = "ior-backend-posix"
 version = "0.1.0"
 dependencies = [
@@ -231,6 +247,8 @@ name = "ior-bench"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "ior-backend-benchfs",
+ "ior-backend-chfs",
  "ior-backend-posix",
  "ior-core",
  "libc",
@@ -244,6 +262,7 @@ name = "ior-core"
 version = "0.1.0"
 dependencies = [
  "bitflags",
+ "libc",
  "mpi",
  "thiserror",
 ]
@@ -321,6 +340,8 @@ name = "mdtest-bench"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "ior-backend-benchfs",
+ "ior-backend-chfs",
  "ior-backend-posix",
  "ior-core",
  "libc",

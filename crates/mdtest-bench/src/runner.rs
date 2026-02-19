@@ -1,5 +1,5 @@
 use ior_core::timer::now;
-use ior_core::Aiori;
+use ior_core::{Aiori, AlignedBuffer};
 use mpi::topology::SimpleCommunicator;
 use mpi::traits::*;
 
@@ -124,9 +124,9 @@ pub fn mdtest_iteration(
 
     let unique_mk_dir = format!("{}.0", base_tree_name);
 
-    // Prepare write buffer
-    let write_buf: Option<Vec<u8>> = if params.write_bytes > 0 {
-        let mut buf = vec![0u8; params.write_bytes as usize];
+    // Prepare page-aligned write buffer (required for O_DIRECT)
+    let write_buf: Option<AlignedBuffer> = if params.write_bytes > 0 {
+        let mut buf = AlignedBuffer::new(params.write_bytes as usize);
         for (i, b) in buf.iter_mut().enumerate() {
             *b = (i % 256) as u8;
         }
@@ -135,8 +135,8 @@ pub fn mdtest_iteration(
         None
     };
 
-    // Prepare read buffer
-    let mut read_buf = vec![0u8; if params.read_bytes > 0 { params.read_bytes as usize } else { 1 }];
+    // Prepare page-aligned read buffer (required for O_DIRECT)
+    let mut read_buf = AlignedBuffer::new(if params.read_bytes > 0 { params.read_bytes as usize } else { 1 });
 
     // Generate random array if needed
     let rand_array = if params.random_seed > 0 {
@@ -215,16 +215,19 @@ fn directory_test(
         phase_prepare(params, comm);
         let start = now();
 
-        tree::create_remove_items(
+        let items_done = tree::create_remove_items(
             0, true, true, &full_path, 0, params, backend, mk_name, rm_name, None,
+            start,
         );
 
         phase_end(params, comm);
         let elapsed = now() - start;
 
-        result.rate[MdtestPhase::DirCreate as usize] = params.items as f64 / elapsed;
+        let effective_items = if params.stone_wall_timer_seconds > 0 { items_done } else { params.items };
+        result.rate[MdtestPhase::DirCreate as usize] = effective_items as f64 / elapsed;
         result.time[MdtestPhase::DirCreate as usize] = elapsed;
-        result.items[MdtestPhase::DirCreate as usize] = params.items;
+        result.items[MdtestPhase::DirCreate as usize] = effective_items;
+        result.stonewall_last_item[MdtestPhase::DirCreate as usize] = items_done;
     }
 
     // Stat phase
@@ -279,6 +282,7 @@ fn directory_test(
 
         tree::create_remove_items(
             0, true, false, &full_path, 0, params, backend, mk_name, rm_name, None,
+            0.0, // no stonewall for remove
         );
 
         phase_end(params, comm);
@@ -318,16 +322,19 @@ fn file_test(
         phase_prepare(params, comm);
         let start = now();
 
-        tree::create_remove_items(
+        let items_done = tree::create_remove_items(
             0, false, true, &full_path, 0, params, backend, mk_name, rm_name, write_buf,
+            start,
         );
 
         phase_end(params, comm);
         let elapsed = now() - start;
 
-        result.rate[MdtestPhase::FileCreate as usize] = params.items as f64 / elapsed;
+        let effective_items = if params.stone_wall_timer_seconds > 0 { items_done } else { params.items };
+        result.rate[MdtestPhase::FileCreate as usize] = effective_items as f64 / elapsed;
         result.time[MdtestPhase::FileCreate as usize] = elapsed;
-        result.items[MdtestPhase::FileCreate as usize] = params.items;
+        result.items[MdtestPhase::FileCreate as usize] = effective_items;
+        result.stonewall_last_item[MdtestPhase::FileCreate as usize] = items_done;
     }
 
     // Stat phase
@@ -372,6 +379,7 @@ fn file_test(
 
         tree::create_remove_items(
             0, false, false, &full_path, 0, params, backend, mk_name, rm_name, None,
+            0.0, // no stonewall for remove
         );
 
         phase_end(params, comm);

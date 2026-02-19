@@ -6,6 +6,8 @@ edition.workspace = true
 [dependencies]
 ior-core.workspace = true
 ior-backend-posix.workspace = true
+ior-backend-benchfs.workspace = true
+ior-backend-chfs.workspace = true
 clap.workspace = true
 mpi.workspace = true
 libc.workspace = true

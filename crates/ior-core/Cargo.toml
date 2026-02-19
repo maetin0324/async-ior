@@ -7,3 +7,4 @@ edition.workspace = true
 thiserror = { workspace = true }
 bitflags = { workspace = true }
 mpi = { workspace = true }
+libc = { workspace = true }

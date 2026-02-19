@@ -1,5 +1,5 @@
 use ior_core::handle::{OpenFlags, XferDir};
-use ior_core::Aiori;
+use ior_core::{now, Aiori};
 
 use crate::params::MdtestParam;
 
@@ -107,6 +107,9 @@ pub fn build_item_path(
 
 /// Create or remove items (files or directories) in the tree.
 ///
+/// Returns the number of items processed. When stonewalling is active,
+/// this may be less than the total.
+///
 /// Reference: `mdtest.c:436-566` (create_remove_items + create_remove_items_helper)
 pub fn create_remove_items(
     curr_depth: i32,
@@ -119,17 +122,21 @@ pub fn create_remove_items(
     mk_name: &str,
     rm_name: &str,
     write_buf: Option<&[u8]>,
-) {
+    stonewall_start: f64,
+) -> u64 {
+    let mut count: u64 = 0;
+
     if curr_depth == 0 {
         // Create/remove items at this depth
         if !params.leaf_only || (params.depth == 0 && params.leaf_only) {
-            create_remove_items_helper(
+            count += create_remove_items_helper(
                 dirs, create, path, 0, params, backend, mk_name, rm_name, write_buf,
+                stonewall_start,
             );
         }
 
         if params.depth > 0 {
-            create_remove_items(
+            count += create_remove_items(
                 curr_depth + 1,
                 dirs,
                 create,
@@ -140,6 +147,7 @@ pub fn create_remove_items(
                 mk_name,
                 rm_name,
                 write_buf,
+                stonewall_start,
             );
         }
     } else if curr_depth <= params.depth {
@@ -150,7 +158,7 @@ pub fn create_remove_items(
 
             // Create items in this branch
             if !params.leaf_only || (params.leaf_only && curr_depth == params.depth) {
-                create_remove_items_helper(
+                count += create_remove_items_helper(
                     dirs,
                     create,
                     &temp_path,
@@ -160,11 +168,12 @@ pub fn create_remove_items(
                     mk_name,
                     rm_name,
                     write_buf,
+                    stonewall_start,
                 );
             }
 
             // Recurse to next level
-            create_remove_items(
+            count += create_remove_items(
                 curr_depth + 1,
                 dirs,
                 create,
@@ -175,14 +184,20 @@ pub fn create_remove_items(
                 mk_name,
                 rm_name,
                 write_buf,
+                stonewall_start,
             );
 
             curr_dir += 1;
         }
     }
+
+    count
 }
 
 /// Helper: create or remove items at a single directory level.
+///
+/// Returns the number of items processed. May be less than `items_per_dir`
+/// when stonewalling is active and the deadline has been reached.
 ///
 /// Reference: `mdtest.c:436-459` (create_remove_items_helper)
 fn create_remove_items_helper(
@@ -195,10 +210,18 @@ fn create_remove_items_helper(
     mk_name: &str,
     rm_name: &str,
     write_buf: Option<&[u8]>,
-) {
+    stonewall_start: f64,
+) -> u64 {
     let name = if create { mk_name } else { rm_name };
 
     for i in 0..params.items_per_dir {
+        // Stonewall check (ref: mdtest.c:451 CHECK_STONE_WALL)
+        if params.stone_wall_timer_seconds > 0
+            && (now() - stonewall_start) > params.stone_wall_timer_seconds as f64
+        {
+            return i;
+        }
+
         if dirs {
             let item_path = format!("{}dir.{}{}", path, name, item_num + i);
             if create {
@@ -215,6 +238,8 @@ fn create_remove_items_helper(
             }
         }
     }
+
+    params.items_per_dir
 }
 
 /// Create a single file, optionally writing data.

@@ -122,6 +122,10 @@ pub struct CliArgs {
     /// Output results as JSON to file (text output still printed)
     #[arg(long = "json-file")]
     pub json_file: Option<String>,
+
+    /// Timestamp signature value (seed for data pattern, C IOR: -G)
+    #[arg(short = 'G', long = "timestamp-signature", default_value_t = 0)]
+    pub timestamp_signature: i32,
 }
 
 /// Parse a size string with optional k/m/g/t suffix (case-insensitive).
@@ -186,6 +190,7 @@ impl CliArgs {
         params.intra_test_barriers = self.intra_test_barriers;
         params.direct_io = self.direct_io;
         params.queue_depth = self.queue_depth;
+        params.time_stamp_signature_value = self.timestamp_signature;
 
         params
     }

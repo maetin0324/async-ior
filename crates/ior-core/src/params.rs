@@ -1,3 +1,5 @@
+use crate::data_pattern::DataPacketType;
+
 /// Maximum length for test file name
 pub const MAX_STR: usize = 1024;
 /// Maximum length for API name
@@ -93,6 +95,12 @@ pub struct IorParam {
     // --- Backend ---
     /// Use O_DIRECT for bypass of OS caches
     pub direct_io: bool,
+
+    // --- Data pattern ---
+    /// Data packet type for write/verify (default: Timestamp)
+    pub data_packet_type: DataPacketType,
+    /// Timestamp signature seed value (default: 0)
+    pub time_stamp_signature_value: i32,
 }
 
 impl Default for IorParam {
@@ -147,6 +155,9 @@ impl Default for IorParam {
 
             queue_depth: 1,
             direct_io: false,
+
+            data_packet_type: DataPacketType::Timestamp,
+            time_stamp_signature_value: 0,
         }
     }
 }

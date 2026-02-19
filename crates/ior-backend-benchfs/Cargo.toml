@@ -1,0 +1,10 @@
+[package]
+name = "ior-backend-benchfs"
+version.workspace = true
+edition.workspace = true
+
+[dependencies]
+ior-core = { workspace = true }
+libc = { workspace = true }
+
+[build-dependencies]
