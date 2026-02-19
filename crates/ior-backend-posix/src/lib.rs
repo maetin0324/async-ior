@@ -6,6 +6,7 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::thread::{self, JoinHandle};
 
 use ior_core::aiori::next_xfer_token;
+use ior_core::backend_options::BackendOptions;
 use ior_core::error::IorError;
 use ior_core::handle::{FileHandle, OpenFlags, StatResult, XferCallback, XferDir, XferResult, XferToken};
 use ior_core::Aiori;
@@ -284,6 +285,18 @@ impl PosixBackend {
 impl Aiori for PosixBackend {
     fn name(&self) -> &str {
         "POSIX"
+    }
+
+    fn configure(&mut self, options: &BackendOptions) -> Result<(), IorError> {
+        for (key, value) in options.for_prefix("posix") {
+            match key {
+                "odirect" => self.direct_io = value.as_bool(),
+                unknown => {
+                    eprintln!("WARNING: unknown POSIX option: posix.{}", unknown);
+                }
+            }
+        }
+        Ok(())
     }
 
     /// Create a new file. Reference: `aiori-POSIX.c:POSIX_Create`

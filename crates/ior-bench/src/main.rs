@@ -15,7 +15,9 @@ fn main() {
     let rank = world.rank();
     let mpi_size = world.size();
 
-    let args = CliArgs::parse();
+    let raw_args: Vec<String> = std::env::args().collect();
+    let (filtered_args, backend_options) = ior_core::extract_backend_options(raw_args);
+    let args = CliArgs::parse_from(filtered_args);
 
     // Extract JSON flags before consuming args
     let json_stdout = args.json;
@@ -60,6 +62,19 @@ fn main() {
         println!("  file_per_proc  = {}", params.file_per_proc);
         println!("  direct_io      = {}", params.direct_io);
         println!("  queue_depth    = {}", params.queue_depth);
+
+        // Print backend-specific options
+        let prefix = params.api_str().to_lowercase();
+        for (key, value) in backend_options.for_prefix(&prefix) {
+            match value {
+                ior_core::OptionValue::Flag => {
+                    println!("  {}.{} = true", prefix, key);
+                }
+                ior_core::OptionValue::Str(s) => {
+                    println!("  {}.{} = {}", prefix, key, s);
+                }
+            }
+        }
     }
 
     // Create test subcommunicator for first num_tasks ranks (ref: ior.c:124-171)
@@ -78,8 +93,13 @@ fn main() {
 
     let test_comm = test_comm.expect("failed to create test communicator");
 
-    // Select backend
-    let backend = select_backend(&params);
+    // Select backend and configure backend-specific options
+    let mut backend = select_backend(&params);
+    if let Err(e) = backend.as_mut().configure(&backend_options) {
+        eprintln!("ERROR: invalid backend option: {}", e);
+        world.barrier();
+        return;
+    }
 
     // Run the benchmark: async path for queue_depth > 1, sync path otherwise
     let result = if params.queue_depth > 1 {

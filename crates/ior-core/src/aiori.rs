@@ -1,5 +1,6 @@
 use std::cell::Cell;
 
+use crate::backend_options::BackendOptions;
 use crate::error::IorError;
 use crate::handle::{FileHandle, OpenFlags, StatResult, XferCallback, XferDir, XferResult, XferToken};
 
@@ -100,6 +101,14 @@ pub trait Aiori {
     fn mknod(&self, path: &str) -> Result<(), IorError> {
         let _ = path;
         Err(IorError::NotSupported)
+    }
+
+    /// Configure backend-specific options parsed from `--prefix.key[=value]` arguments.
+    ///
+    /// Called once before benchmark execution. Default implementation does nothing.
+    fn configure(&mut self, options: &BackendOptions) -> Result<(), IorError> {
+        let _ = options;
+        Ok(())
     }
 
     /// Synchronous data transfer with retry loop.

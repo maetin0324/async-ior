@@ -17,7 +17,9 @@ fn main() {
     let rank = world.rank();
     let mpi_size = world.size();
 
-    let args = CliArgs::parse();
+    let raw_args: Vec<String> = std::env::args().collect();
+    let (filtered_args, backend_options) = ior_core::extract_backend_options(raw_args);
+    let args = CliArgs::parse_from(filtered_args);
 
     // Extract JSON flags before consuming args
     let json_stdout = args.json;
@@ -66,11 +68,29 @@ fn main() {
         if params.read_bytes > 0 {
             println!("  read_bytes           = {}", params.read_bytes);
         }
+
+        // Print backend-specific options
+        let prefix = params.api.to_lowercase();
+        for (key, value) in backend_options.for_prefix(&prefix) {
+            match value {
+                ior_core::OptionValue::Flag => {
+                    println!("  {}.{} = true", prefix, key);
+                }
+                ior_core::OptionValue::Str(s) => {
+                    println!("  {}.{} = {}", prefix, key, s);
+                }
+            }
+        }
         println!();
     }
 
-    // Select backend
-    let backend = select_backend(&params);
+    // Select backend and configure backend-specific options
+    let mut backend = select_backend(&params);
+    if let Err(e) = backend.as_mut().configure(&backend_options) {
+        eprintln!("ERROR: invalid backend option: {}", e);
+        world.barrier();
+        return;
+    }
 
     // Collect all results across task scaling for JSON
     let mut all_json_results: Vec<runner::MdtestResult> = Vec::new();
